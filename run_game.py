@@ -29,7 +29,6 @@ mouse_pos = (0, 0)
 music_is_playing = True
 victory_music_played = False
 lose_music_played = False
-tutorial_timer = 0
 
 # A imagem de fundo que se repete é o céu
 bg_tile = images.sky_bg
@@ -37,13 +36,13 @@ bg_tile_width = bg_tile.get_width()
 bg_tile_height = bg_tile.get_height()
 
 # --- Classes de Atores ---
-class Jogador(Rect):
+class Player(Rect):
     def __init__(self, x, y):
         super().__init__(x, y, 40, 60)
-        self.velocidade_x = 0
-        self.velocidade_y = 0
-        self.no_chao = False
-        self.vivo = True
+        self.velocity_x = 0
+        self.velocity_y = 0
+        self.on_ground = False
+        self.is_alive = True
 
         # Lista de imagens para cada animação do jogador
         self.idle_images = ['character/pose_idle1_segundaversao', 'character/pose_idle2_segundaversao',
@@ -60,31 +59,31 @@ class Jogador(Rect):
         self.image = self.idle_images[0]
 
     def update(self):
-        if not self.vivo:
+        if not self.is_alive:
             return
 
         # Movimento horizontal
         if keyboard.left:
-            self.velocidade_x = -PLAYER_SPEED
+            self.velocity_x = -PLAYER_SPEED
         elif keyboard.right:
-            self.velocidade_x = PLAYER_SPEED
+            self.velocity_x = PLAYER_SPEED
         else:
-            self.velocidade_x = 0
+            self.velocity_x = 0
 
         # Pulo
-        if keyboard.up and self.no_chao:
-            self.velocidade_y = JUMP_SPEED
-            self.no_chao = False
+        if keyboard.up and self.on_ground:
+            self.velocity_y = JUMP_SPEED
+            self.on_ground = False
             if music_is_playing:
                 sounds.jump_sound.play()
 
         # Lógica de animação
         previous_animation = self.current_animation
 
-        if not self.no_chao and abs(self.velocidade_y) > 0.1:
+        if not self.on_ground and abs(self.velocity_y) > 0.1:
             # Animação de pulo
             self.current_animation = self.jumping_images
-        elif self.velocidade_x != 0:
+        elif self.velocity_x != 0:
             # Animação de caminhada
             self.current_animation = self.walking_images
         else:
@@ -103,11 +102,11 @@ class Jogador(Rect):
 
         self.image = self.current_animation[self.animation_frame]
 
-        self.x += self.velocidade_x
+        self.x += self.velocity_x
 
-        if not self.no_chao:
-            self.velocidade_y += GRAVITY
-        self.y += self.velocidade_y
+        if not self.on_ground:
+            self.velocity_y += GRAVITY
+        self.y += self.velocity_y
 
         if self.x < 0:
             self.x = 0
@@ -117,11 +116,11 @@ class Jogador(Rect):
     def draw(self):
         screen.blit(self.image, (self.x, self.y - camera_y))
 
-class Inimigo(Rect):
+class Enemy(Rect):
     def __init__(self, x, y):
         super().__init__(x, y, 40, 40)
-        self.velocidade_x = -ENEMY_SPEED
-        self.vivo = True
+        self.velocity_x = -ENEMY_SPEED
+        self.is_alive = True
 
         # Animação de troca de cor
         self.enemy_images = ['enemy/enemy_green', 'enemy/enemy_red']
@@ -129,8 +128,8 @@ class Inimigo(Rect):
         self.animation_timer = 0
         self.image = self.enemy_images[0]
 
-    def update(self, plataformas):
-        if not self.vivo:
+    def update(self):
+        if not self.is_alive:
             return
 
         # Atualiza a animação de troca de cor
@@ -141,15 +140,15 @@ class Inimigo(Rect):
         self.image = self.enemy_images[self.animation_frame]
 
         # Movimento horizontal
-        self.x += self.velocidade_x
+        self.x += self.velocity_x
         if self.left < 0 or self.right > level_width:
-            self.velocidade_x *= -1
+            self.velocity_x *= -1
 
     def draw(self):
-        if self.vivo:
+        if self.is_alive:
             screen.blit(self.image, (self.x, self.y - camera_y))
 
-class Bloco(Rect):
+class Block(Rect):
     def __init__(self, x, y):
         super().__init__(x, y, 60, 60)
         self.image = 'blocks/ground_block'
@@ -159,7 +158,7 @@ class Bloco(Rect):
 
 # --- Funções de Gerenciamento do Jogo ---
 def reset_game():
-    global game_over, win_game, camera_y, jogador, inimigos, plataformas, plataformas_finais, game_state, music_is_playing, victory_music_played, lose_music_played
+    global game_over, win_game, camera_y, player, enemies, platforms, final_platforms, game_state, music_is_playing, victory_music_played, lose_music_played
     game_over = False
     win_game = False
     camera_y = 0
@@ -171,69 +170,69 @@ def reset_game():
     if music_is_playing:
         music.play('back_ground_music')
 
-    jogador = Jogador(WIDTH / 2, level_height - 100)
+    player = Player(WIDTH / 2, level_height - 100)
 
-    chao_inicial = []
+    initial_ground = []
 
-    largura_terreno = 60
-    num_blocos = math.ceil(WIDTH / largura_terreno)
-    for i in range(num_blocos):
-        chao_inicial.append(Bloco(i * largura_terreno, level_height - 40))
+    ground_width = 60
+    num_blocks = math.ceil(WIDTH / ground_width)
+    for i in range(num_blocks):
+        initial_ground.append(Block(i * ground_width, level_height - 40))
 
-    plataformas_finais = []
+    final_platforms = []
     for i in range(5):
-        plataformas_finais.append(Bloco(250 + i * 60, 100))
+        final_platforms.append(Block(250 + i * 60, 100))
 
-    plataformas = chao_inicial + [
-        Bloco(300, level_height - 150),
-        Bloco(500, level_height - 250),
-        Bloco(100, level_height - 350),
-        Bloco(600, level_height - 450),
-        Bloco(250, level_height - 550),
-        Bloco(450, level_height - 650),
-        Bloco(50, level_height - 750),
-        Bloco(700, level_height - 850),
-        Bloco(300, level_height - 950),
-        Bloco(500, level_height - 1050),
-        Bloco(150, level_height - 1150),
-        Bloco(650, level_height - 1250),
-        Bloco(200, level_height - 1350),
-        Bloco(550, level_height - 1450),
-        Bloco(50, level_height - 1550),
-        Bloco(400, level_height - 1650),
-        Bloco(700, level_height - 1750),
-        Bloco(300, level_height - 1850),
-        Bloco(500, level_height - 1950),
-        Bloco(100, level_height - 2050),
-        Bloco(600, level_height - 2150),
-        Bloco(350, level_height - 2250),
-        Bloco(50, level_height - 2350),
-        Bloco(400, level_height - 2450),
-        Bloco(150, level_height - 2550),
-        Bloco(650, level_height - 2650),
-        Bloco(200, level_height - 2750),
-        Bloco(550, level_height - 2850),
-        Bloco(50, level_height - 2950),
-        Bloco(400, level_height - 3050),
-        Bloco(700, level_height - 3150),
-        Bloco(300, level_height - 3250),
-        Bloco(500, level_height - 3350),
-        Bloco(100, level_height - 3450),
-        Bloco(600, level_height - 3550),
-        Bloco(350, level_height - 3650),
-        Bloco(250, level_height - 3750),
-        Bloco(450, level_height - 3850),
-    ] + plataformas_finais
+    platforms = initial_ground + [
+        Block(300, level_height - 150),
+        Block(500, level_height - 250),
+        Block(100, level_height - 350),
+        Block(600, level_height - 450),
+        Block(250, level_height - 550),
+        Block(450, level_height - 650),
+        Block(50, level_height - 750),
+        Block(700, level_height - 850),
+        Block(300, level_height - 950),
+        Block(500, level_height - 1050),
+        Block(150, level_height - 1150),
+        Block(650, level_height - 1250),
+        Block(200, level_height - 1350),
+        Block(550, level_height - 1450),
+        Block(50, level_height - 1550),
+        Block(400, level_height - 1650),
+        Block(700, level_height - 1750),
+        Block(300, level_height - 1850),
+        Block(500, level_height - 1950),
+        Block(100, level_height - 2050),
+        Block(600, level_height - 2150),
+        Block(350, level_height - 2250),
+        Block(50, level_height - 2350),
+        Block(400, level_height - 2450),
+        Block(150, level_height - 2550),
+        Block(650, level_height - 2650),
+        Block(200, level_height - 2750),
+        Block(550, level_height - 2850),
+        Block(50, level_height - 2950),
+        Block(400, level_height - 3050),
+        Block(700, level_height - 3150),
+        Block(300, level_height - 3250),
+        Block(500, level_height - 3350),
+        Block(100, level_height - 3450),
+        Block(600, level_height - 3550),
+        Block(350, level_height - 3650),
+        Block(250, level_height - 3750),
+        Block(450, level_height - 3850),
+    ] + final_platforms
 
-    inimigos = [
-        Inimigo(500, level_height - 500),
-        Inimigo(150, level_height - 900),
-        Inimigo(600, level_height - 1300),
-        Inimigo(350, level_height - 1800),
-        Inimigo(100, level_height - 2200),
-        Inimigo(500, level_height - 2700),
-        Inimigo(300, level_height - 3100),
-        Inimigo(500, level_height - 3700)
+    enemies = [
+        Enemy(500, level_height - 500),
+        Enemy(150, level_height - 900),
+        Enemy(600, level_height - 1300),
+        Enemy(350, level_height - 1800),
+        Enemy(100, level_height - 2200),
+        Enemy(500, level_height - 2700),
+        Enemy(300, level_height - 3100),
+        Enemy(500, level_height - 3700)
     ]
 
 def start_game():
@@ -306,39 +305,39 @@ def update():
             lose_music_played = True
         return
 
-    jogador.update()
+    player.update()
 
-    jogador.no_chao = False
+    player.on_ground = False
 
-    for p in plataformas:
-        if jogador.colliderect(p):
-            if jogador.velocidade_y >= 0 and jogador.bottom <= p.top + jogador.velocidade_y + 5:
-                if p in plataformas_finais:
+    for p in platforms:
+        if player.colliderect(p):
+            if player.velocity_y >= 0 and player.bottom <= p.top + player.velocity_y + 5:
+                if p in final_platforms:
                     win_game = True
 
-                jogador.bottom = p.top
-                jogador.velocidade_y = 0
-                jogador.no_chao = True
+                player.bottom = p.top
+                player.velocity_y = 0
+                player.on_ground = True
 
-            elif jogador.velocidade_y < 0 and jogador.top >= p.bottom - 5:
-                jogador.top = p.bottom
-                jogador.velocidade_y = 0
+            elif player.velocity_y < 0 and player.top >= p.bottom - 5:
+                player.top = p.bottom
+                player.velocity_y = 0
 
-    for inimigo in inimigos:
-        inimigo.update(plataformas)
-        if inimigo.vivo and jogador.colliderect(inimigo):
+    for enemy in enemies:
+        enemy.update()
+        if enemy.is_alive and player.colliderect(enemy):
             game_over = True
-            jogador.vivo = False
+            player.is_alive = False
 
-    camera_y = jogador.y - HEIGHT / 2
+    camera_y = player.y - HEIGHT / 2
     if camera_y < 0:
         camera_y = 0
     if camera_y > level_height - HEIGHT:
         camera_y = level_height - HEIGHT
 
-    if jogador.y - camera_y > HEIGHT:
+    if player.y - camera_y > HEIGHT:
         game_over = True
-        jogador.vivo = False
+        player.is_alive = False
 
 def draw():
     # Desenha o fundo em todas as telas
@@ -373,7 +372,7 @@ def draw():
         if music_button.collidepoint(mouse_pos):
             music_button_color = (200, 200, 200)
         screen.draw.filled_rect(music_button, music_button_color)
-        music_text = "SOM: ON" if music_is_playing else "SOM: OFF"
+        music_text = "SOM: LIGADO" if music_is_playing else "SOM: DESLIGADO"
         screen.draw.text(music_text, center=music_button.center, fontsize=40, fontname="8bitoperatorplus8-regular.ttf", color='black')
 
         exit_button_color = (255, 255, 255)
@@ -392,7 +391,7 @@ def draw():
         screen.draw.text("FECHAR", center=close_button.center, fontsize=25, fontname="8bitoperatorplus8-regular.ttf", color='black')
 
     elif game_over:
-        screen.draw.text("GAME OVER", center=(WIDTH/2, HEIGHT/2 - 50), fontsize=60, fontname="8bitoperatorplus8-regular.ttf", color='red')
+        screen.draw.text("FIM DE JOGO", center=(WIDTH/2, HEIGHT/2 - 50), fontsize=60, fontname="8bitoperatorplus8-regular.ttf", color='red')
         screen.draw.text("Pressione ESPAÇO para Jogar Novamente", center=(WIDTH/2, HEIGHT/2), fontsize=30, fontname="8bitoperatorplus8-regular.ttf", color='black')
 
     elif win_game:
@@ -400,18 +399,17 @@ def draw():
         screen.draw.text("Pressione ESPAÇO para Jogar Novamente", center=(WIDTH/2, HEIGHT/2), fontsize=30, fontname="8bitoperatorplus8-regular.ttf", color='black')
 
     elif game_state == 'PLAYING':
-        jogador.draw()
-        for p in plataformas:
+        player.draw()
+        for p in platforms:
             p.draw()
-        for inimigo in inimigos:
-            inimigo.draw()
-
+        for enemy in enemies:
+            enemy.draw()
 
 # --- Inicialização ---
-inimigos = []
-plataformas = []
-plataformas_finais = []
-jogador = None
+enemies = []
+platforms = []
+final_platforms = []
+player = None
 
 # A música toca a partir do início do script
 music.play('back_ground_music')
