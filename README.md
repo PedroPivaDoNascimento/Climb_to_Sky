@@ -4,8 +4,6 @@
 
 **Climbing to Sky** é um jogo de plataforma vertical de pixel art, onde você controla uma raposa corajosa. Seu objetivo é escalar o mais alto que puder, pulando entre plataformas e evitando inimigos perigosos, até alcançar o topo e vencer o jogo.
 
-O jogo apresenta um nível infinito e desafiador, com uma trilha sonora relaxante que te acompanha durante a jornada de ascensão.
-
 ---
 
 ## Controles
