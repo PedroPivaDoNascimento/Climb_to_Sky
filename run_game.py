@@ -372,7 +372,7 @@ def draw():
         if music_button.collidepoint(mouse_pos):
             music_button_color = (200, 200, 200)
         screen.draw.filled_rect(music_button, music_button_color)
-        music_text = "SOM: LIGADO" if music_is_playing else "SOM: DESLIGADO"
+        music_text = "SOM: ON" if music_is_playing else "SOM: OFF"
         screen.draw.text(music_text, center=music_button.center, fontsize=40, fontname="8bitoperatorplus8-regular.ttf", color='black')
 
         exit_button_color = (255, 255, 255)
